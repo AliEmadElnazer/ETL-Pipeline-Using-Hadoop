@@ -1,4 +1,4 @@
-# ETL Pipeline for Hadoop to Virtual Machine
+# ETL Pipeline Using Hadoop 
 
 This project demonstrates an ETL (Extract, Transform, Load) pipeline for efficiently moving and transforming data between MySQL, Hadoop, and a local virtual machine using Apache Sqoop, Hive, and HDFS. The pipeline includes importing data from MySQL, storing it in HDFS, transforming it with Hive, and exporting the processed data back to a virtual machine for further use.
 
