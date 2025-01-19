@@ -1,0 +1,190 @@
+Project Title: Order Data ETL Pipeline with Hive and Sqoop
+
+he project focuses on building an ETL pipeline for order data stored in a MySQL database. The goal is to process and analyze the data using Hive, followed by exporting the processed data back to MySQL for reporting and insights.
+
+
+1-Import customer data from MySQL(use retail_db) into HDFS
+
+
+sqoop import --connect jdbc:mysql://localhost:3306/retail_db --username root --password cloudera --m 1 --table  orders  --delete-target-dir  --target-dir /user/cloudera/cloud
+
+
+
+2- Hive setup :
+
+-Create a Hive database: 
+
+   - CREATE DATABASE hive_Database;
+   - USE retail_analysis;
+
+-Create a Hive managed table
+
+CREATE TABLE orders_hive (
+    order_id INT,
+    order_date STRING,
+    order_customer_id INT,
+    order_status STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+
+-Load data into the Hive table:
+
+   - LOAD DATA INPATH '/user/cloudera/cloud' INTO TABLE orders_hive;
+
+-Create a partitioned table
+
+CREATE TABLE orders_partition (
+    order_id INT,
+    order_date STRING,
+    order_customer_id INT
+)
+PARTITIONED BY (order_status STRING)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+SET hive.exec.dynamic.partition=true;
+SET hive.exec.dynamic.partition.mode=nonstrict;
+
+INSERT OVERWRITE TABLE orders_partition
+PARTITION (order_status)
+SELECT order_id, order_date, order_customer_id, order_status
+FROM orders_hive;
+
+
+SELECT order_status, COUNT(*) AS total_orders FROM orders_hive GROUP BY order_status;
+
+
+SELECT order_id, order_customer_id, order_status FROM orders_hive WHERE order_status = 'PENDING';
+
+
+
+INSERT INTO orders VALUES 
+(88875, '2014-07-26 00:00:00', 12347, 'PROCESSING');
+
+
+sqoop import --connect jdbc:mysql://localhost:3306/retail_db --username root --password cloudera --table orders --m 1 --incremental append --check-column order_id --last-value 68883 
+--target-dir /user/cloudera/new_recored
+
+CREATE TABLE orders_process (
+    order_id INT PRIMARY KEY,
+    order_date DATETIME,
+    order_customer_id INT,
+    order_status VARCHAR(50)
+);
+
+
+sqoop export --connect jdbc:mysql://localhost:3306/retail_db --username root --password cloudera --table orders_process --export-dir /user/hive/warehouse/hive_Database.db/orders_hive 
+--input-fields-terminated-by ',' --m 1;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--Enable bucketing for analytics :
+
+CREATE TABLE customers_bucket (
+    customer_id INT,
+    customer_name STRING,
+    customer_email STRING,
+    customer_city STRING,
+    customer_state STRING,
+    customer_zipcode STRING
+)
+CLUSTERED BY (customer_id) INTO 4 BUCKETS
+STORED AS TEXTFILE;
+
+INSERT OVERWRITE TABLE customers_bucketed
+SELECT * FROM customers_hive;
+
+
+-Hive Queries
+
+SELECT customer_state, COUNT(*) AS total_customers 
+FROM customers_hive 
+GROUP BY customer_state;
+
+SELECT customer_name, customer_email 
+FROM customers_hive 
+WHERE customer_state = 'CA';
+
+
+- Incremental Data Import with Sqoop
+
+
+INSERT INTO customers VALUES
+(4, 'Anna White', 'anna.white@example.com', 'Houston', 'TX', '77001');
+
+sqoop import \
+--connect jdbc:mysql://localhost:3306/retail_db \
+--username root --password cloudera \
+--table customers \
+--incremental append \
+--check-column customer_id \
+--last-value 3 \
+--target-dir /user/cloudera/customers_incremental \
+--m 1;
+
+Hive Optimization Techniques :
+
+Enable compression 
+SET hive.exec.compress.output=true;
+SET mapreduce.output.fileoutputformat.compress.codec=org.apache.hadoop.io.compress.SnappyCodec;
+
+USE spark execution engine for faster query performance.
+SET hive.execution.engine=spark;
+
+
+Export Data to MySQL : 
+
+CREATE TABLE customers_exported (
+    customer_id INT PRIMARY KEY,
+    customer_name VARCHAR(100),
+    customer_email VARCHAR(100),
+    customer_city VARCHAR(50),
+    customer_state VARCHAR(50),
+    customer_zipcode VARCHAR(20)
+);
+
+
+
+sqoop export \
+--connect jdbc:mysql://localhost:3306/retail_db \
+--username root --password cloudera \
+--table customers_exported \
+--export-dir /user/hive/warehouse/customers_hive \
+--input-fields-terminated-by ',' \
+--m 1;
+
