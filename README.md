@@ -15,7 +15,7 @@ The pipeline operates in the following steps:
 
 Below is the visual representation of the pipeline:
 
-![ETL Pipeline Workflow](18.01.2025_21.28.45_REC.png)
+![ETL Pipeline Workflow](21.01.2025_14.21.19_REC.png)
 
 ## Key Features
 - Import data from relational databases (MySQL) into HDFS using Sqoop.
